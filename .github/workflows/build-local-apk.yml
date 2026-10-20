@@ -5,13 +5,16 @@ name: build-local-apk
 # Debug builds use applicationIdSuffix ".debug", so they can be installed
 # alongside the official release.
 #
-# Runs automatically when the local-apk branch is pushed. workflow_dispatch is
-# also available once this file is on the default branch.
+# - push to the local-apk branch  -> builds and uploads an artifact
+# - push a zh-* tag               -> builds and publishes a prerelease with
+#                                    the apk attached (public download, no login)
 
 on:
   push:
     branches:
       - local-apk
+    tags:
+      - "zh-*"
   workflow_dispatch:
     inputs:
       arch:
@@ -26,7 +29,7 @@ on:
           - x86
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-debug-apk:
@@ -62,3 +65,18 @@ jobs:
           name: openscq30-zh-debug-${{ env.ARCH }}
           path: out/*.apk
           if-no-files-found: error
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/zh-')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.apk
+          name: 中文测试版 ${{ github.ref_name }}
+          prerelease: true
+          fail_on_unmatched_files: true
+          body: |
+            OpenSCQ30 简体中文测试版（debug 签名，可与官方版共存）。
+
+            - 构建自提交 `${{ github.sha }}`
+            - 包名 `com.oppzippy.openscq30.debug`，无需卸载官方版
+            - 数据独立，首次使用需要重新配对耳机
